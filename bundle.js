@@ -740,12 +740,12 @@ const filename = path.basename(__filename)
 
 module.exports = button
 
-function button ({page, name, content, style, color, current, disabled = false}, protocol) {
+function button ({page, name, content, style, color, custom, current, disabled = false}, protocol) {
     const widget = 'ui-button'
     const send2Parent = protocol( receive )
     send2Parent({page, from: name, flow: widget, type: 'init', filename, line: 11})
     
-    let button = bel`<button role="button" class="${css.btn} ${ checkStyle() } ${color ? css[color] : ''} ${current ? css.current : '' }" name=${name} aria-label=${name} disabled=${disabled}>${content}</button>`
+    let button = bel`<button role="button" class="${css.btn} ${ checkStyle() } ${color ? css[color] : ''} ${custom ? custom.join(' ') : ''} ${current ? css.current : '' }" name=${name} aria-label=${name} disabled=${disabled}>${content}</button>`
     button.onclick = click
 
     return button
@@ -1855,7 +1855,7 @@ function datdotApp (page = "PLANS") {
         return send => {
             send({page: "PLANS", from: 'datdotApp', flow: name, type: 'ready', filename, line: 19 })
             return ( message ) => {
-                console.log( message );
+                console.log( message )
             }
         }
     }
@@ -1889,6 +1889,10 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0;
     padding: 0;
 }
+.wrap {
+    padding: 20px 20px 0 20px;
+    max-width: 600px;
+}
 .title {
     font-size: 2.6rem;
     font-weight: bold;
@@ -1919,30 +1923,113 @@ module.exports = plansList
 function plansList ({page}, protocol) {
     const send2Parent = protocol( createNewPlanReceive )
     const iconCreate = svg({css: `${css.icon} ${css.create}`, path: '../node_modules/datdot-ui-graphic/assets/plus.svg'})
-    const createButton = button({page, name: 'create', content: iconCreate, style: 'solid', color: 'dark', disabled: false}, createNewPlanProtocol('create-new-plan'))
-    const section = layout({layoutName: 'plans', layoutStyle: css.plansList, content: bel`<div>${createButton}</div>`})
-    
+    const iconCryFace = svg({css: `${css.icon} ${css['cry-face']}`, path: 'assets/cry-face.svg'})
+    const section = layout({layoutName: 'plans', layoutStyle: css.plansList, content: myPlans()})
+
     send2Parent({page, from: 'plans-list', type: 'ready', filename, line: 15})
     
     return section
-}
 
-function createNewPlanProtocol(name) {
-    return send => {
-        return createNewPlanReceive
+    function myPlans () {
+        const createPlan = button({page, name: 'create-plan', content: iconCreate, style: 'solid', color: 'dark', custom: [css['create-plan']], disabled: false}, createNewPlanProtocol('create-plan'))
+        const planList = bel`<div class=${css['plan-list']}></div>`
+        // display plan list
+        createPlanItems()
+
+        return bel`
+        <header>
+            <div class=${css['header-top']}>
+                <h1 class=${css.title}>My plans</h1>
+                <div class=${css['plan-counts']}>No plan yet ${iconCryFace}</div>
+            </div>
+            <div class=${css['plans-group']}>
+                ${createPlan}
+                <div class=${css.scrollable}>
+                    ${planList}
+                </div>
+            </div>
+        </header>`
+
+        function createPlanItems() {
+            for (let i = 1; i < 9; i++) {
+                let item = bel`<div index=${i} role="plan" class="${css.plan}" aria-label="no plan"></div>`
+                planList.append(item)
+            }
+       }
     }
-}
 
-function createNewPlanReceive (message) {
-    const { page, from, flow, type, action, body, filename, line } = message
-    console.log(message );
-    if (type === 'click') console.log( `create new plan in line ${line} `)
+    function createNewPlanProtocol(name) {
+        return send => {
+            return createNewPlanReceive
+        }
+    }
+    
+    function createNewPlanReceive (message) {
+        const { page, from, flow, type, action, body, filename, line } = message
+        console.log(message );
+        if (type === 'click') console.log( `create new plan in line ${line} `)
+    }
 }
 
 const css = csjs`
 .plansList {}
+.header-top {
+    display: grid;
+    grid-template-rows: auto;
+    grid-template-columns: repeat(2, 50%);
+    align-items: flex-end;
+    margin-bottom: 13px;
+}
+.title {
+    font-size: 2.6rem;
+}
+.plan-counts {
+    display: flex;
+    font-size: 1.4rem;
+    color: var(--grey70);
+    justify-self: right;
+}
+.cry-face {
+    width: 22px;
+    margin-left: 10px;
+}
+.plans-group {
+    display: grid;
+    grid-template-rows: repeat(2, 47px);
+    grid-template-columns: 40px auto;
+    grid-gap: 10px;
+    overflow: hidden;
+}
+.create-plan {
+    grid-row-start: 1;
+    grid-row-end: 3;
+    height: 100%;
+    display: grid;
+    justify-content: center;
+    align-items: center;
+}
 .icon {}
-.create {}
+.create {
+    width: 16px;
+}
+.plan-list {
+    display: grid;
+    grid-gap: 10px;
+    grid-template-rows: repeat(2, minmax(44px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(auto, 137px));
+    grid-auto-flow: column;
+}
+.plan {
+    width: 137px;
+    height: 44px;
+    background-color: var(--greyED); 
+    border-radius: 8px;
+    border: 1px dashed var(--grey88);
+}
+.scrollable {
+    height: 110px;
+    overflow-y: auto;
+}
 `
 }).call(this)}).call(this,"/src/node_modules/plans-list-layout.js")
 },{"bel":3,"csjs-inject":6,"datdot-ui-button":23,"datdot-ui-graphic":24,"layout":31,"path":28}]},{},[1]);

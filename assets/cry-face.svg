@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="21" height="15" viewBox="0 0 21 15">
+  <defs>
+    <clipPath id="clip-cry-face">
+      <rect width="21" height="15"/>
+    </clipPath>
+  </defs>
+  <g id="cry-face" clip-path="url(#clip-cry-face)">
+    <g id="Group_1250" data-name="Group 1250" transform="translate(-487.272 -36.25)">
+      <g id="Group_1249" data-name="Group 1249" transform="translate(485 37)">
+        <g id="Ellipse_308" data-name="Ellipse 308" transform="translate(3.272 0.25)" fill="#fff" stroke="#707070" stroke-width="1.5">
+          <circle cx="3" cy="3" r="3" stroke="none"/>
+          <circle cx="3" cy="3" r="2.25" fill="none"/>
+        </g>
+        <g id="Ellipse_309" data-name="Ellipse 309" transform="translate(14.272 0.25)" fill="#fff" stroke="#707070" stroke-width="1.5">
+          <circle cx="3" cy="3" r="3" stroke="none"/>
+          <circle cx="3" cy="3" r="2.25" fill="none"/>
+        </g>
+      </g>
+      <path id="Path_1775" data-name="Path 1775" d="M4651.029,9443.666a14.239,14.239,0,0,1,6.231-1.863h6.655" transform="translate(-4160.953 -9393.416)" fill="none" stroke="#707070" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_1776" data-name="Path 1776" d="M4668.868,9423.244a4.131,4.131,0,0,1,1.571,2.9c.221,2-3.091,2.343-3.155,0A2.763,2.763,0,0,1,4668.868,9423.244Z" transform="matrix(0.891, -0.454, 0.454, 0.891, -7933.129, -6232.92)" fill="#707070"/>
+    </g>
+  </g>
+</svg>

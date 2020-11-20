@@ -18,7 +18,7 @@ function datdotApp (page = "PLANS") {
         return send => {
             send({page: "PLANS", from: 'datdotApp', flow: name, type: 'ready', filename, line: 19 })
             return ( message ) => {
-                console.log( message );
+                console.log( message )
             }
         }
     }
@@ -51,6 +51,10 @@ body {
 h1, h2, h3, h4, h5, h6 {
     margin: 0;
     padding: 0;
+}
+.wrap {
+    padding: 20px 20px 0 20px;
+    max-width: 600px;
 }
 .title {
     font-size: 2.6rem;
