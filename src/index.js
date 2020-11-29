@@ -22,7 +22,7 @@ function datdotApp (page = "PLANS") {
     function pageProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 29 })
+            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 25 })
             return (message) => {
                 const { page, from, flow, type, action, body } = message
             }
@@ -32,7 +32,7 @@ function datdotApp (page = "PLANS") {
     function plansListProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 29 })
+            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 35 })
             return ( message ) => {
                 // console.log( message )
                 const { page, from, flow, type, action, body } = message
@@ -40,7 +40,7 @@ function datdotApp (page = "PLANS") {
                     receipients[name]({page, from: 'datdotApp', type: 'disabled'})
                     console.log('open new plan', filename, 'line', 33)
                 }    
-                if (type === 'add new plan') console.log('addd new plan', filename, 'line', 34)
+                if (type === 'add new plan') console.log('addd new plan', filename, 'line', 43)
             }
         }
     }
