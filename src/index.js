@@ -7,24 +7,45 @@ const navgation = require('navgation')
 
 module.exports = datdotApp
 
-function datdotApp (page = "PLANS") {
+function datdotApp (protocol) {
     const receipients = []
-    const el = bel`
-    <div class=${css.wrap}>
-        <div class=${css.container}>
-            ${plansList({page}, plansListProtocol('plans-list') )}
-        </div>
-        ${navgation({page}, pageProtocol('main-menu'))}
-    </div>
-    `
+    const send2Parent = protocol( receive )
+    const page = 'PLANS'
+    let nav = navgation({page}, pageProtocol('main-menu'))
+    let user = bel`<h1>USER page</h1>`
+    let plans = plansList({page}, plansListProtocol('plans-list') )
+    let jobs = bel`<h1>JOBS page</h1>`
+    let apps = bel`<h1>APPS page</h1>`
+    const container = bel`<div class=${css.container}></div>`
+    const el = bel`<div class=${css.wrap}>${container}${nav}</div>`
+    container.append(plans)
+
     return el
 
+
+    /*************************
+    * ------ Actions -------
+    *************************/
+    function handlePageRender (message) {
+        const { page, from, flow, type, action, body, filename } = message
+        container.innerHTML = ''
+        if (from === 'user') container.append(user)
+        if (from === 'plans') container.append(plans)
+        if (from === 'jobs') container.append(jobs)
+        if (from === 'apps') container.append(apps)
+        return send2Parent({page, from, flow, type: 'render-page', body, filename: `ui-template/${filename}`, line: 31 })
+    }
+    /*************************
+    * ------ Protocols -------
+    *************************/
     function pageProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 25 })
             return (message) => {
-                const { page, from, flow, type, action, body } = message
+                const { page, from, flow, type, action, body, filename } = message
+                send2Parent({...message, filename: `ui-template/${filename}`, line: 34})
+                if (type === 'init') return send2Parent({page, from, flow, type: 'ready', body, filename: `ui-template/${filename}`, line: 30 })
+                if (type === 'current-active') return handlePageRender(message)
             }
         }
     }
@@ -32,17 +53,27 @@ function datdotApp (page = "PLANS") {
     function plansListProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 35 })
             return ( message ) => {
                 // console.log( message )
-                const { page, from, flow, type, action, body } = message
+                const { page, from, flow, type, action, body, filename } = message
+                if (type === 'init') send2Parent({page, from: name, flow, type: 'ready', body, filename: `ui-template/${filename}`, line: 42 })
                 if (type === 'create') {
-                    receipients[name]({page, from: 'datdotApp', type: 'disabled'})
-                    console.log('open new plan', filename, 'line', 33)
+                    let log = {page, from, flow: 'demoAPP', type: 'disabled', body, filename: `ui-template/${filename}`, line: 44 }
+                    receipients[name](log)
+                    send2Parent(log)
+                    console.log('open new plan', page, from, body, 'line', 47)
                 }    
-                if (type === 'add new plan') console.log('addd new plan', filename, 'line', 43)
+                if (type === 'add new plan') console.log('addd new plan', page, from, body, 'line', 49)
             }
         }
+    }
+
+    /*************************
+    * ------ receiver -------
+    *************************/
+    function receive (message) {
+        const { page, from, flow, type, action, body } = message
+        console.log( message);
     }
 }
 
@@ -63,15 +94,6 @@ const css = csjs`
     --grey88: #888;
     --greyF2: #F2F2F2;
 }
-* {
-    box-sizing: border-box;
-    padding: 0;
-    margin: 0;
-}
-html {
-    font-size: 62.5%;
-    height: 100%;
-}
 body {
     padding: 0;
     margin: 0;
@@ -88,6 +110,7 @@ h1, h2, h3, h4, h5, h6 {
     display: grid;
     grid-template-rows: auto 40px;
     grid-template-columns: minmax(auto, 800px);
+    width: 100%;
     max-width: 800px;
     height: 100%;
     margin: 0 auto;
@@ -103,7 +126,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 @media (max-width: 800px) {
     .wrap {
-        grid-template-columns: 100vw;
+        grid-template-columns: 100%;
+        max-width: 100%;
     }
 }
 `

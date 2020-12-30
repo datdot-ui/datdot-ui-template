@@ -1,7 +1,80 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function (__filename){(function (){
+const bel = require('bel')
+const csjs = require('csjs-inject')
+const path = require('path')
+const filename = path.basename(__filename)
+const domlog = require('ui-domlog')
 const datdotApp = require('..')
-document.body.append( datdotApp() )
-},{"..":121}],2:[function(require,module,exports){
+
+function demoTemplate() {
+    const content = datdotApp( protocol('demo') )
+     // show logs
+    let terminal = bel`<div class=${css.terminal}></div>`
+    const el = bel`
+    <div class=${css.demo}>
+        ${content}
+        ${terminal}
+    </div>`
+    return el
+
+    /*********************************
+    * ------ protocols() -------
+    *********************************/
+    function protocol (name) {
+        return send => {
+            return function receive (message) {
+                showLog(message)
+            }
+        }
+    }
+
+    /*********************************
+    * ------ Promise() Element -------
+    *********************************/
+    // keep the scroll on bottom when the log displayed on the terminal
+    function showLog (message) { 
+        sendMessage(message)
+        .then( log => {
+            terminal.append(log)
+            terminal.scrollTop = terminal.scrollHeight
+        }
+    )}
+
+    async function sendMessage (message) {
+        return await new Promise( (resolve, reject) => {
+            if (message === undefined) reject('no message import')
+            const log = domlog(message)
+            return resolve(log)
+        }).catch( err => { throw new Error(err) } )
+    }
+}
+
+
+const css = csjs`
+*, *:before, *:after {
+    box-sizing: inherit;
+}
+html {
+    font-size: 62.5%;
+    height: 100%;
+}
+.demo {
+    display: grid;
+    grid-template-columns: 100%;
+    grid-template-rows: 75% 25%;
+    height: 100%;
+}
+.terminal {
+    background-color: #212121;
+    color: #f2f2f2;
+    font-size: 13px;
+    overflow-y: auto;
+}
+`
+document.body.append( demoTemplate() )
+}).call(this)}).call(this,"/demo/demo.js")
+},{"..":122,"bel":3,"csjs-inject":6,"path":29,"ui-domlog":121}],2:[function(require,module,exports){
 var trailingNewlineRegex = /\n[\s]+$/
 var leadingNewlineRegex = /^\n[\s]+/
 var trailingSpaceRegex = /[\s]+$/
@@ -740,10 +813,11 @@ const filename = path.basename(__filename)
 
 module.exports = button
 
-function button ({page, name, content, style, color, custom, current, disabled = false}, protocol) {
+function button ({page, flow = null, name, content, style, color, custom, current, disabled = false}, protocol) {
     const widget = 'ui-button'
     const send2Parent = protocol( receive )
-    send2Parent({page, from: name, flow: widget, type: 'init', filename, line: 11})
+    send2Parent({page, from: name, flow: flow ? `${flow}/${widget}` : widget, type: 'init', filename, line: 11})
+    let state
     
     let button = bel`<button role="button" class="${css.btn} ${ checkStyle() } ${color ? css[color] : ''} ${custom ? custom.join(' ') : ''} ${current ? css.current : '' }" name=${name} aria-label=${name} disabled=${disabled}>${content}</button>`
     button.onclick = click
@@ -771,15 +845,28 @@ function button ({page, name, content, style, color, custom, current, disabled =
 
         button.append(ripple)
         setTimeout( () => { ripple.remove() }, 600)
+        send2Parent({page, from: name, flow: flow ? `${flow}/${widget}` : widget, type: 'click', filename, line: 40})
+    }
 
-        send2Parent({page, from: name, flow: widget, type: 'click', filename, line: 40})
+    function setState(update) {
+        return state = update
+    }
+
+    function toggleActive (isActive, message) {
+        const { page, from, flow } = message
+        let newState = isActive ? setState('self-active') : setState('remove-active')
+        button.classList.toggle(css.active)
+        return send2Parent({page, flow, from, type: 'state', body: newState, filename, line: 51})
     }
 
     function receive(message) {
-        const {page, from, type, action, body} = message
+        const { type } = message
         // console.log('received from main component', message )
-        if ( type === 'active' ) button.classList.add(css.current)
+        if ( type === 'current-active' ) button.classList.add(css.current)
+        if ( type === 'remove-current' ) button.classList.remove(css.current)
         if ( type === 'disabled' ) button.setAttribute('disabled', true)
+        if ( type === 'active' ) toggleActive(true, message)
+        if ( type === 'remove-active' ) toggleActive(false, message)
     }
 }
 
@@ -794,7 +881,10 @@ const css = csjs`
     cursor: pointer;
     outline: none;
     overflow: hidden;
-    transition: background-color .25s, border .25s, color .25s ease-in-out;
+    transition: background-color .3s, border .3s, color .3s ease-in-out;
+}
+.btn svg g {
+    transition: fill .3s linear;
 }
 .solid {
     color: #fff;
@@ -821,14 +911,26 @@ const css = csjs`
     border-radius: 8px;
     background-color: transparent;
 }
-.fill-grey g {
+.fill-grey svg g {
     fill: #BBBBBB;
 }
 .fill-grey:hover {
-    background-color: rgba(0, 0, 0, .15);
+    background-color: rgba(0, 0, 0, .75);
 }
-.fill-grey:hover g {
+.fill-grey:hover svg g {
     fill: #fff;
+}
+.fill-dark svg g {
+    fill: #333;
+}
+.fill-dark:hover {
+    background-color: rgba(255,255,255, .5);
+}
+.fill-white svg g {
+    fill: #fff;
+}
+.fill-white:hover {
+    background-color: rgba(188,188,188, .5);
 }
 .stroke-black path {
     stroke: #000;
@@ -892,6 +994,10 @@ const css = csjs`
     color: #707070;
     background-color: #fff;
 }
+.white:hover {
+    color: #fff;
+    background-color: #d3d3d3;
+}
 .list {
     color: #707070;
     background-color: #DDD;
@@ -940,7 +1046,7 @@ svg {
     padding-top: 2px;
 }
 .btn[disabled], .btn[disabled]:hover {
-    color: #fff;
+    color: #a9a9a9;
     background-color: rgba(217, 217, 217, 1);
     cursor: not-allowed;
 }
@@ -954,14 +1060,6 @@ svg {
     stroke: #BBB;
 }
 .current {}
-.option.current {
-    font-size: 16px;
-    color: #000;
-    font-weight: bold;
-    border-radius: 30px;
-    border: 2px solid #000;
-    padding: 10px 15px;
-}
 .nav {
     padding: 0;
     line-height: 40px;
@@ -970,6 +1068,21 @@ svg {
     color: #242424;
     font-weight: bold;
     background-color: #F2F2F2;
+}
+.option {
+    border: 2px solid rgba(255,255,255,0);
+    border-radius: 18px;
+    transition: border .6s, color .5s ease-in-out;
+}
+.option.current {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000;
+    border: 2px solid rgba(0,0,0,1);
+}
+.active {
+    color: #fff;
+    background-color: #000;
 }
 @keyframes ripples {
     0% {
@@ -13015,6 +13128,84 @@ exports.EffectCoverflow = effectCoverflow;
 exports.Thumbs = thumbs;
 
 },{"./cjs/components/a11y/a11y":32,"./cjs/components/autoplay/autoplay":33,"./cjs/components/controller/controller":34,"./cjs/components/core/core-class":42,"./cjs/components/effect-coverflow/effect-coverflow":97,"./cjs/components/effect-cube/effect-cube":98,"./cjs/components/effect-fade/effect-fade":99,"./cjs/components/effect-flip/effect-flip":100,"./cjs/components/hash-navigation/hash-navigation":101,"./cjs/components/history/history":102,"./cjs/components/keyboard/keyboard":103,"./cjs/components/lazy/lazy":104,"./cjs/components/mousewheel/mousewheel":105,"./cjs/components/navigation/navigation":106,"./cjs/components/pagination/pagination":107,"./cjs/components/parallax/parallax":108,"./cjs/components/scrollbar/scrollbar":109,"./cjs/components/thumbs/thumbs":110,"./cjs/components/virtual/virtual":111,"./cjs/components/zoom/zoom":112}],121:[function(require,module,exports){
+const bel = require('bel')
+const csjs = require('csjs-inject')
+
+module.exports = domlog
+
+let count = 1
+
+function domlog (message) {
+    const { page = 'demo', from, flow, type, body, action, filename, line } = message
+    const log = bel`
+    <div class=${css.log} role="log">
+        <div class=${css.badge}>${count}</div>
+        <div class="${css.output} ${type === 'error' ? css.error : '' }">
+            <span class=${css.page}>${page}</span> 
+            <span class=${css.flow}>${flow}</span>
+            <span class=${css.from}>${from}</span>
+            <span class=${css.type}>${type}</span>
+            <span class=${css.info}>${typeof body === 'string' ? body : JSON.stringify(body, ["swarm", "feeds", "links"], 3)}</span>
+        </div>
+        <div class=${css['code-line']}>${filename}:${line}</div>
+    </div>`
+    count++
+    return log
+    
+}
+const css = csjs`
+.log {
+    display: grid;
+    grid-template-rows: auto;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    padding: 2px 12px 0 0;
+    border-bottom: 1px solid #333;
+}
+.log:last-child, .log:last-child .page, .log:last-child .flow, .log:last-child .type {
+    color: #FFF500;
+    font-weight: bold;
+}
+.output {}
+.badge {
+    background-color: #333;
+    padding: 6px;
+    margin-right: 10px;
+    font-size: 14px;
+    display: inline-block;
+}
+.code-line {}
+.error {
+    
+}
+.error .type {
+    padding: 2px 6px;
+    color: white;
+    background-color: #AC0000;
+    border-radius: 2px;
+}
+.error .info {
+    color: #FF2626;
+}
+.page {
+    display: inline-block;
+    color: rgba(255,255,255,.75);
+    background-color: #2A2E30;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+.flow {
+    color: #1DA5FF;
+}
+.from {
+    color: #fff;
+}
+.type {
+    color: #FFB14A;
+}
+.info {}
+`
+},{"bel":3,"csjs-inject":6}],122:[function(require,module,exports){
 (function (__filename){(function (){
 const bel = require('bel')
 const csjs = require('csjs-inject')
@@ -13025,24 +13216,45 @@ const navgation = require('navgation')
 
 module.exports = datdotApp
 
-function datdotApp (page = "PLANS") {
+function datdotApp (protocol) {
     const receipients = []
-    const el = bel`
-    <div class=${css.wrap}>
-        <div class=${css.container}>
-            ${plansList({page}, plansListProtocol('plans-list') )}
-        </div>
-        ${navgation({page}, pageProtocol('main-menu'))}
-    </div>
-    `
+    const send2Parent = protocol( receive )
+    const page = 'PLANS'
+    let nav = navgation({page}, pageProtocol('main-menu'))
+    let user = bel`<h1>USER page</h1>`
+    let plans = plansList({page}, plansListProtocol('plans-list') )
+    let jobs = bel`<h1>JOBS page</h1>`
+    let apps = bel`<h1>APPS page</h1>`
+    const container = bel`<div class=${css.container}></div>`
+    const el = bel`<div class=${css.wrap}>${container}${nav}</div>`
+    container.append(plans)
+
     return el
 
+
+    /*************************
+    * ------ Actions -------
+    *************************/
+    function handlePageRender (message) {
+        const { page, from, flow, type, action, body, filename } = message
+        container.innerHTML = ''
+        if (from === 'user') container.append(user)
+        if (from === 'plans') container.append(plans)
+        if (from === 'jobs') container.append(jobs)
+        if (from === 'apps') container.append(apps)
+        return send2Parent({page, from, flow, type: 'render-page', body, filename: `ui-template/${filename}`, line: 31 })
+    }
+    /*************************
+    * ------ Protocols -------
+    *************************/
     function pageProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 29 })
             return (message) => {
-                const { page, from, flow, type, action, body } = message
+                const { page, from, flow, type, action, body, filename } = message
+                send2Parent({...message, filename: `ui-template/${filename}`, line: 34})
+                if (type === 'init') return send2Parent({page, from, flow, type: 'ready', body, filename: `ui-template/${filename}`, line: 30 })
+                if (type === 'current-active') return handlePageRender(message)
             }
         }
     }
@@ -13050,17 +13262,27 @@ function datdotApp (page = "PLANS") {
     function plansListProtocol (name) {
         return send => {
             receipients[name] = send
-            send({page, from: 'datdotApp', flow: name, type: 'ready', filename, line: 29 })
             return ( message ) => {
                 // console.log( message )
-                const { page, from, flow, type, action, body } = message
+                const { page, from, flow, type, action, body, filename } = message
+                if (type === 'init') send2Parent({page, from: name, flow, type: 'ready', body, filename: `ui-template/${filename}`, line: 42 })
                 if (type === 'create') {
-                    receipients[name]({page, from: 'datdotApp', type: 'disabled'})
-                    console.log('open new plan', filename, 'line', 33)
+                    let log = {page, from, flow: 'demoAPP', type: 'disabled', body, filename: `ui-template/${filename}`, line: 44 }
+                    receipients[name](log)
+                    send2Parent(log)
+                    console.log('open new plan', page, from, body, 'line', 47)
                 }    
-                if (type === 'add new plan') console.log('addd new plan', filename, 'line', 34)
+                if (type === 'add new plan') console.log('addd new plan', page, from, body, 'line', 49)
             }
         }
+    }
+
+    /*************************
+    * ------ receiver -------
+    *************************/
+    function receive (message) {
+        const { page, from, flow, type, action, body } = message
+        console.log( message);
     }
 }
 
@@ -13081,15 +13303,6 @@ const css = csjs`
     --grey88: #888;
     --greyF2: #F2F2F2;
 }
-* {
-    box-sizing: border-box;
-    padding: 0;
-    margin: 0;
-}
-html {
-    font-size: 62.5%;
-    height: 100%;
-}
 body {
     padding: 0;
     margin: 0;
@@ -13106,6 +13319,7 @@ h1, h2, h3, h4, h5, h6 {
     display: grid;
     grid-template-rows: auto 40px;
     grid-template-columns: minmax(auto, 800px);
+    width: 100%;
     max-width: 800px;
     height: 100%;
     margin: 0 auto;
@@ -13121,12 +13335,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 @media (max-width: 800px) {
     .wrap {
-        grid-template-columns: 100vw;
+        grid-template-columns: 100%;
+        max-width: 100%;
     }
 }
 `
 }).call(this)}).call(this,"/src/index.js")
-},{"bel":3,"csjs-inject":6,"navgation":123,"path":29,"plans-list-layout":124}],122:[function(require,module,exports){
+},{"bel":3,"csjs-inject":6,"navgation":124,"path":29,"plans-list-layout":125}],123:[function(require,module,exports){
 const bel = require('bel')
 module.exports = layout
 function layout(opts) {
@@ -13134,27 +13349,45 @@ function layout(opts) {
     const element = bel`<section role=${layoutName} class=${layoutStyle} aria-label=${layoutName}>${content}</section>`
     return element
 }
-},{"bel":3}],123:[function(require,module,exports){
+},{"bel":3}],124:[function(require,module,exports){
+(function (__filename){(function (){
 const bel = require('bel')
 const csjs = require('csjs-inject')
 const button = require('datdot-ui-button')
+const path = require('path')
+const filename = path.basename(__filename)
 
 module.exports = navigation
 
 function navigation (opts, protocol) {
     let recipients = []
     const { page = 'PLANS', flow, buttons } = opts
-    const widget = 'nav-bottom'
+    const widget = 'ui-nav-bottom'
     const send2Parent = protocol( pageReceive )
-    send2Parent({page, from: widget, type: 'init'})
+    send2Parent({page, from: 'navgation', flow: flow ? `${flow}/${widget}` : widget, type: 'init', filename, line: 14})
 
-    const user = button({page, name: 'user', content: 'USER', style: 'nav', color: 'white', custom: [css.user]}, handlePageProtocol('user'))
+    const user = button({page, name: 'user', content: 'USER', style: 'nav', color: 'white', custom: [css.user], disabled: true}, handlePageProtocol('user'))
     const plans = button({page, name: 'plans', content: 'PLANS', style: 'nav', color: 'white', custom: [css.plans], disabled: false, current: true}, handlePageProtocol('plans'))
     const jobs = button({page, name: 'jobs', content: 'JOBS', style: 'nav', color: 'white', custom: [css.jobs]}, handlePageProtocol('jobs'))
-    const apps = button({page, name: 'apps', content: 'APPS', style: 'nav', color: 'white', custom: [css.apps]}, handlePageProtocol('apps'))
+    const apps = button({page, name: 'apps', content: 'APPS', style: 'nav', color: 'white', custom: [css.apps], disabled: true}, handlePageProtocol('apps'))
     const nav = bel`<nav class=${css.navbar}>${user}${plans}${jobs}${apps}</nav>`
     
     return nav
+
+    function actionSwitch(args, message) {
+        const { page, from, flow, type, action, body } = message
+        const classList = []
+        args.forEach( (btn, i) => {
+            const target = btn.getAttribute('name')
+            classList.push( target )
+            const type = target === from ? 'current-active' : 'remove-current'
+            const name = target === from ? from : classList[i]
+            const log = { page, from: name, flow, type}
+            recipients[name](log)
+            if (type === 'remove-current') return 
+            return send2Parent({...log, body, filename, line: 34})
+        })
+    }
 
     function handlePageProtocol (name) {
         return send => {
@@ -13164,16 +13397,8 @@ function navigation (opts, protocol) {
     }
 
     function pageReceive (message) {
-        const { page, from, flow, type, action, body, filename, line } = message
-        if ( type === 'click') {
-            [...nav.children].forEach( btn => {
-                btn.classList.remove( [...btn.classList][4] )
-                if ( btn.getAttribute('name') === from ) {
-                    recipients[from]({page, from, type: 'active'})
-                    send2Parent({page, from, type: 'render page'})
-                }
-            } )
-        }
+        const { page, from, flow, type, action, body } = message
+        if ( type === 'click') actionSwitch([...nav.children], message)
     }
 }
 
@@ -13183,12 +13408,23 @@ const css = csjs`
     grid-template-columns: repeat(4, 1fr);
     background-color: var(--white);
 }
+.navbar button {
+    margin: 0;
+}
+.navbar button:hover {
+    color: var(--grey70);
+    background-color: inherit;
+}
+.navbar button[class*='current']:hover {
+    background-color: var(--greyF2);
+}
 .user {}
 .plans {}
 .jobs {}
 .apps {}
 `
-},{"bel":3,"csjs-inject":6,"datdot-ui-button":23}],124:[function(require,module,exports){
+}).call(this)}).call(this,"/src/node_modules/navgation.js")
+},{"bel":3,"csjs-inject":6,"datdot-ui-button":23,"path":29}],125:[function(require,module,exports){
 (function (__filename){(function (){
 const bel = require('bel')
 const csjs = require('csjs-inject')
@@ -13208,14 +13444,26 @@ function plansList ({page}, protocol) {
     const iconCreate = svg({css: `${css.icon} ${css.create}`, path: 'assets/plus.svg'})
     const iconCryFace = svg({css: `${css.icon} ${css['cry-face']}`, path: 'assets/cry-face.svg'})
     const section = layout({layoutName: 'plans', layoutStyle: css.plansList, content: myPlans()})
+    
+    send2Parent({page, from: 'plans-list', flow: widget, type: 'init', filename, line: 15})
 
-    send2Parent({page, from: 'plans-list', type: 'ready', filename, line: 15})
-
-    window.addEventListener('DOMContentLoaded', ()=> {
-        const mySwiper = new Swiper('.swiper-container', {
-            speed: 400,
-            spaceBetween: 100
-        });
+    document.addEventListener('DOMContentLoaded', ()=> {
+        const mySwiper = new Swiper(`.${css['swiper-container']}`, {
+            speed: 300,
+            slidesPerView: 5,
+            slidesPerColumn: 2,
+            spaceBetween: 4,
+            breakpoints: {
+                320: {
+                    slidesPerView: 3,
+                },
+                // when window width is <= 640px
+                640: {
+                    slidesPerView: 4,
+                }
+            }
+        })
+        mySwiper.width = '100%'
     })
 
     // return whole view
@@ -13225,7 +13473,8 @@ function plansList ({page}, protocol) {
     function myPlans () {
         const createPlan = button({page, name: 'create-plan', content: iconCreate, style: 'solid', color: 'dark', custom: [css['create-plan']]}, createNewPlanProtocol('create-plan'))
         const planList = bel`<div class="swiper-wrapper ${css['plan-list']}"></div>`
-        
+        const swiperContainer = bel`<div class="${css['swiper-container']}"></div>`
+        swiperContainer.append(planList)
         // display plan list
         createPlanItems()
 
@@ -13237,18 +13486,14 @@ function plansList ({page}, protocol) {
             </div>
             <div id="plans-group" class=${css['plans-group']} role="plans group">
                 ${createPlan}
-                <div class="${css.scrollable}">
-                    <div class="swiper-container">
-                        ${planList}
-                    </div>
-                </div>
+                <div class="${css.scrollable}">${swiperContainer}</div>
             </div>
         </header>`
 
         // create plan items
         function createPlanItems() {
             for (let i = 1; i < 13; i++) {
-                let item = bel`<div index=${i} role="plan" class="${css.plan}" aria-label="no plan"></div>`
+                let item = bel`<div index=${i} role="plan" class="swiper-slide ${css.plan}" aria-label="no plan">${i}</div>`
                 planList.append(item)
             }
        }
@@ -13312,23 +13557,32 @@ const css = csjs`
 }
 .plan-list {
     display: grid;
-    grid-gap: 8px;
-    grid-template-rows: repeat(2, minmax(44px, 1fr));
-    grid-template-columns: repeat(auto-fit, minmax(auto, 137px));
+    grid-template-rows: repeat(2, 44px);
+    grid-template-columns: repeat(13, minmax(auto, 145px) );
     grid-auto-flow: column;
+    grid-gap:8px 4px;
 }
 .plan {
     width: 137px;
-    height: 44px;
+    height: 100%;
     background-color: var(--greyED); 
     border-radius: 8px;
     border: 1px dashed var(--grey88);
 }
 .scrollable {
     margin-left: 8px;
+    width: 100%;
     height: 102px;
     overflow: hidden;
 }
+.swiper-container {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+}
+.swiper-slide {
+    height: 44px;
+}
 `
 }).call(this)}).call(this,"/src/node_modules/plans-list-layout.js")
-},{"bel":3,"csjs-inject":6,"datdot-ui-button":23,"datdot-ui-graphic":24,"layout":122,"path":29,"swiper":120}]},{},[1]);
+},{"bel":3,"csjs-inject":6,"datdot-ui-button":23,"datdot-ui-graphic":24,"layout":123,"path":29,"swiper":120}]},{},[1]);
