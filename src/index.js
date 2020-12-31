@@ -64,6 +64,7 @@ function datdotApp (protocol) {
                     console.log('open new plan', page, from, body, 'line', 47)
                 }    
                 if (type === 'add new plan') console.log('addd new plan', page, from, body, 'line', 49)
+                if (type === 'click') send2Parent(message)
             }
         }
     }
@@ -97,7 +98,7 @@ const css = csjs`
 body {
     padding: 0;
     margin: 0;
-    font-size: 100%;
+    font-size: 1.6rem;
     font-family: Arial, Helvetica, sans-serif;
     height: 100%;
     background-color: var(--greyE4);
